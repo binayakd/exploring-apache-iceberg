@@ -1,0 +1,163 @@
+---
+# version: "3"
+
+networks:
+  main: {}
+
+services:
+
+  jupyter-spark:
+    image: jupyter-spark
+    container_name: jupyter-spark
+    build: jupyter-spark/
+    networks:
+      - main
+    ports:
+      - 8888:8888
+    volumes:
+      - ./workspace:/home/iceberg/workspace:z
+      - ./local-data/downloaded-data:/home/iceberg/workspace/downloaded-data:z
+    environment:
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password
+      AWS_REGION: us-east-1
+
+  minio:
+    image: minio/minio
+    container_name: minio
+    networks:
+      - main
+    ports:
+      - 9001:9001
+      - 9000:9000
+    volumes:
+      - ./local-data/minio-data:/data:z
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password
+      MINIO_DOMAIN: minio
+    command: ["server", "/data", "--console-address", ":9001"]
+
+  mc:
+    depends_on:
+      - minio
+    image: minio/mc
+    container_name: mc
+    networks:
+      - main
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+    entrypoint: >
+      /bin/sh -c "
+      until (/usr/bin/mc config host add minio http://minio:9000 admin password) do echo '...waiting...' && sleep 1; done;
+      /usr/bin/mc mb --ignore-existing minio/warehouse
+      "
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    networks:
+      - main
+    ports:
+      - 5432:5432
+    volumes:
+      - ./postgres-init:/docker-entrypoint-initdb.d:z
+      - ./local-data/postgres-data:/var/lib/postgresql/data:z
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_MULTIPLE_DATABASES: hive,nessie,iceberg
+
+  trino:
+    image: "trinodb/trino:453"
+    container_name: trino
+    networks:
+      - main
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./trino-config/etc:/usr/lib/trino/etc:z
+      - ./trino-config/catalog:/etc/trino/catalog:z
+    environment:
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password
+      AWS_REGION: us-east-1
+
+
+    
+  # hive-metastore:
+  #   depends_on:
+  #     - postgres
+  #   image: hive-metastore
+  #   container_name: hive-metastore
+  #   build: hive-metastore/
+  #   networks:
+  #     - main
+  #   ports:
+  #     - 9083:9083
+  #   environment:
+  #     METASTORE_THRIFT_PORT: '9083'
+  #     DATABASE_JDBC_URL: jdbc:postgresql://postgres:5432/hive
+  #     DATABASE_TYPE: postgres
+  #     DB_DRIVER_CLASS: org.postgresql.Driver
+  #     DATABASE_USER: postgres
+  #     DATABASE_PASSWORD: postgres
+  #     S3A_CREDENTIAL_PROVIDER: "software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider"
+  #     AWS_ACCESS_KEY_ID: admin
+  #     AWS_SECRET_ACCESS_KEY: password
+  #     AWS_REGION: us-east-1
+  #     S3A_ENDPOINT: http://minio:9000
+  #     S3A_PATH_STYLE_ACCESS: true
+
+  # nessie:
+  #   image: ghcr.io/projectnessie/nessie:0.94.4
+  #   container_name: nessie
+  #   networks:
+  #     - main
+  #   ports:
+  #     # API port
+  #     - "19120:19120"
+  #     # Management port (metrics and health checks)
+  #     - "19121:19121"
+  #   depends_on:
+  #     - postgres
+  #     - minio
+  #   environment:
+  #     # Version store settings.
+  #     - nessie.version.store.type=JDBC
+  #     - nessie.version.store.persist.jdbc.datasource=postgresql
+  #     - quarkus.datasource.postgresql.jdbc.url=jdbc:postgresql://postgres:5432/postgres?currentSchema=nessie
+  #     - quarkus.datasource.postgresql.username=postgres
+  #     - quarkus.datasource.postgresql.password=postgres
+  #     - quarkus.management.port=19121
+  #     # Object store settings.
+  #     # This example uses MinIO as the object store.
+  #     - nessie.catalog.default-warehouse=warehouse
+  #     - nessie.catalog.warehouses.warehouse.location=s3://warehouse/nessie/
+  #     - nessie.catalog.service.s3.default-options.region=us-east-1
+  #     - nessie.catalog.service.s3.default-options.path-style-access=true
+  #     - nessie.catalog.service.s3.default-options.access-key.name=admin
+  #     - nessie.catalog.service.s3.default-options.access-key.secret=password
+  #     # MinIO endpoint for Nessie server
+  #     - nessie.catalog.service.s3.default-options.endpoint=http://minio:9000/
+  #     # MinIO endpoint for clients (on the Podman/Docker host)
+  #     - nessie.catalog.service.s3.default-options.external-endpoint=http://127.0.0.1:9000/
+
+  # iceberg-rest-java:
+  #   image: tabulario/iceberg-rest
+  #   container_name: iceberg-rest-java
+  #   networks:
+  #     - main
+  #   ports:
+  #     - 8181:8181
+  #   environment:
+  #     - AWS_ACCESS_KEY_ID=admin
+  #     - AWS_SECRET_ACCESS_KEY=password
+  #     - AWS_REGION=us-east-1
+  #     - CATALOG_WAREHOUSE=s3://warehouse/iceberg-rest/
+  #     - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
+  #     - CATALOG_S3_ENDPOINT=http://minio:9000
+  #     - CATALOG_S3_PATH__STYLE__ACCESS=true
