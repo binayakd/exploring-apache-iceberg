@@ -6,6 +6,7 @@ networks:
 
 services:
 
+  # Development environment
   jupyter-spark:
     image: jupyter-spark
     container_name: jupyter-spark
@@ -22,6 +23,7 @@ services:
       AWS_SECRET_ACCESS_KEY: password
       AWS_REGION: us-east-1
 
+  # Object storage
   minio:
     image: minio/minio
     container_name: minio
@@ -38,6 +40,8 @@ services:
       MINIO_DOMAIN: minio
     command: ["server", "/data", "--console-address", ":9001"]
 
+  # Minio client
+  # to automatically create the required bucket on startup
   mc:
     depends_on:
       - minio
@@ -86,65 +90,63 @@ services:
       AWS_SECRET_ACCESS_KEY: password
       AWS_REGION: us-east-1
 
+  hive-metastore:
+    depends_on:
+      - postgres
+    image: hive-metastore
+    container_name: hive-metastore
+    build: hive-metastore/
+    networks:
+      - main
+    ports:
+      - 9083:9083
+    environment:
+      METASTORE_THRIFT_PORT: '9083'
+      DATABASE_JDBC_URL: jdbc:postgresql://postgres:5432/hive
+      DATABASE_TYPE: postgres
+      DB_DRIVER_CLASS: org.postgresql.Driver
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      S3A_CREDENTIAL_PROVIDER: "software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider"
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password
+      AWS_REGION: us-east-1
+      S3A_ENDPOINT: http://minio:9000
+      S3A_PATH_STYLE_ACCESS: true
 
-    
-  # hive-metastore:
-  #   depends_on:
-  #     - postgres
-  #   image: hive-metastore
-  #   container_name: hive-metastore
-  #   build: hive-metastore/
-  #   networks:
-  #     - main
-  #   ports:
-  #     - 9083:9083
-  #   environment:
-  #     METASTORE_THRIFT_PORT: '9083'
-  #     DATABASE_JDBC_URL: jdbc:postgresql://postgres:5432/hive
-  #     DATABASE_TYPE: postgres
-  #     DB_DRIVER_CLASS: org.postgresql.Driver
-  #     DATABASE_USER: postgres
-  #     DATABASE_PASSWORD: postgres
-  #     S3A_CREDENTIAL_PROVIDER: "software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider"
-  #     AWS_ACCESS_KEY_ID: admin
-  #     AWS_SECRET_ACCESS_KEY: password
-  #     AWS_REGION: us-east-1
-  #     S3A_ENDPOINT: http://minio:9000
-  #     S3A_PATH_STYLE_ACCESS: true
-
-  # nessie:
-  #   image: ghcr.io/projectnessie/nessie:0.94.4
-  #   container_name: nessie
-  #   networks:
-  #     - main
-  #   ports:
-  #     # API port
-  #     - "19120:19120"
-  #     # Management port (metrics and health checks)
-  #     - "19121:19121"
-  #   depends_on:
-  #     - postgres
-  #     - minio
-  #   environment:
-  #     # Version store settings.
-  #     - nessie.version.store.type=JDBC
-  #     - nessie.version.store.persist.jdbc.datasource=postgresql
-  #     - quarkus.datasource.postgresql.jdbc.url=jdbc:postgresql://postgres:5432/postgres?currentSchema=nessie
-  #     - quarkus.datasource.postgresql.username=postgres
-  #     - quarkus.datasource.postgresql.password=postgres
-  #     - quarkus.management.port=19121
-  #     # Object store settings.
-  #     # This example uses MinIO as the object store.
-  #     - nessie.catalog.default-warehouse=warehouse
-  #     - nessie.catalog.warehouses.warehouse.location=s3://warehouse/nessie/
-  #     - nessie.catalog.service.s3.default-options.region=us-east-1
-  #     - nessie.catalog.service.s3.default-options.path-style-access=true
-  #     - nessie.catalog.service.s3.default-options.access-key.name=admin
-  #     - nessie.catalog.service.s3.default-options.access-key.secret=password
-  #     # MinIO endpoint for Nessie server
-  #     - nessie.catalog.service.s3.default-options.endpoint=http://minio:9000/
-  #     # MinIO endpoint for clients (on the Podman/Docker host)
-  #     - nessie.catalog.service.s3.default-options.external-endpoint=http://127.0.0.1:9000/
+  nessie:
+    image: ghcr.io/projectnessie/nessie:0.94.4
+    container_name: nessie
+    networks:
+      - main
+    ports:
+      # API port
+      - "19120:19120"
+      # Management port (metrics and health checks)
+      - "19121:19121"
+    depends_on:
+      - postgres
+      - minio
+    environment:
+      # Version store settings.
+      - nessie.version.store.type=JDBC
+      - nessie.version.store.persist.jdbc.datasource=postgresql
+      - quarkus.datasource.postgresql.jdbc.url=jdbc:postgresql://postgres:5432/nessie
+      - quarkus.datasource.postgresql.username=postgres
+      - quarkus.datasource.postgresql.password=postgres
+      - quarkus.management.port=19121
+      # Object store settings.
+      # This example uses MinIO as the object store.
+      - nessie.catalog.default-warehouse=warehouse
+      - nessie.catalog.warehouses.warehouse.location=s3://warehouse/nessie/
+      - nessie.catalog.service.s3.default-options.region=us-east-1
+      - nessie.catalog.service.s3.default-options.path-style-access=true
+      - nessie.catalog.service.s3.default-options.access-key.name=admin
+      - nessie.catalog.service.s3.default-options.access-key.secret=password
+      # MinIO endpoint for Nessie server
+      - nessie.catalog.service.s3.default-options.endpoint=http://minio:9000/
+      # MinIO endpoint for clients (on the Podman/Docker host)
+      - nessie.catalog.service.s3.default-options.external-endpoint=http://127.0.0.1:9000/
 
   # iceberg-rest-java:
   #   image: tabulario/iceberg-rest

@@ -4,14 +4,14 @@ FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 ARG RUN_AS_USER=1000
 
 # Spark and Iceberg versions
-ARG SPARK_VERSION=3.5.1
-ARG SPARK_HADOOP_CLOUD_VERSION=3.5.1
+ARG SPARK_VERSION=3.5.2
+ARG SPARK_HADOOP_CLOUD_VERSION=3.5.2
 ARG SPARK_MAJOR_VERSION=3.5
 ARG ICEBERG_VERSION=1.5.2
 ARG HADOOP_VERSION=3.3.4
 ARG AWS_SDK_VERSION=1.12.760
 ARG POSTGRES_VERSION=42.7.3
-
+ARG NESSIE_EXTENTIONS_VERSION=0.95.0
 
 # update and install java and python dependencies
 RUN microdnf update -y \
@@ -69,6 +69,15 @@ RUN curl -s https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle
 RUN curl -s https://jdbc.postgresql.org/download/postgresql-${POSTGRES_VERSION}.jar \
   -Lo /opt/extra-jars/postgresql.jar
 
+# Download Nessie extentions
+RUN curl -s https://repo1.maven.org/maven2/org/projectnessie/nessie-integrations/nessie-spark-extensions-3.5_2.13/${NESSIE_EXTENTIONS_VERSION}/nessie-spark-extensions-3.5_2.13-${NESSIE_EXTENTIONS_VERSION}.jar \
+  -Lo /opt/extra-jars/nessie-spark-extensions-3.5_2.13.jar
+
+# Download Minio client
+RUN curl https://dl.min.io/client/mc/release/linux-amd64/mc \
+  --create-dirs \
+  -o /home/iceberg/.local/bin/mc \
+  && chmod +x /home/iceberg/.local/bin/mc
 
 # switch to home directory
 WORKDIR /home/iceberg
