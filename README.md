@@ -1,50 +1,58 @@
 # Exploring Apache Iceberg
 
-With the recent [buzz around Apache Iceberg Tables](https://thenewstack.io/snowflake-databricks-and-the-fight-for-apache-iceberg-tables/), I am cashing in on the this buzz to explore what Apache Iceberg is all about, exploring the iceberg that is Apache Iceberg, if you will.
+This repo the is the accompaniment to the [blog post]() where we explore the basics of setting up Hive, JDBC and REST Iceberg catalogs, and test writing and reading to Iceberg using Spark and Trino.
 
-The way I see it, Iceberg provides an better alternative to Hive Metastore, which itself has been used to bring relational database table like interface on top of "unstructured" data, in distributed storage. It is better because, not only does it have some additional features (Schema evolution, hidden partitioning, snapshots, improved performance, etc.), but also the fact that it is an open standard, with multiple implementations, allowing us to move away from Hadoop/Hive dependencies. 
+## Prerequisites
+You would need these to get things working:
+1. Git
+2. Docker/Podman Compose
 
-## The Engines of Exploration
+## Setup
 
-Iceberg is supported using multiple querying engine 
-
-## quickstart
-https://iceberg.apache.org/spark-quickstart/#docker-compose
-https://github.com/tabular-io/docker-spark-iceberg
-
-
-## Test data
-https://avilpage.com/2022/11/common-crawl-laptop-extract-subset.html
-aws s3 ls s3://commoncrawl/cc-index/table/cc-main/warc/crawl=CC-MAIN-2024-26/subset=warc/part-00000-44971353-df4b-48d7-8025-975e8feb989b.c000.gz.parquet
-
-
-## create minio bucket
+Clone this repo down, including submodules:
 
 ```bash
-mc config host add minio http://minio:9000 admin password
-mc mb minio/hive-warehouse
-mc policy set public minio/hive-warehouse
+git clone --recurse-submodules git@github.com:binayakd/exploring-apache-iceberg.git
 ```
 
-## creating metadata for table using pylceberg?
+Inside the cloned folder, trigger the image builds:
 
-https://www.definite.app/blog/iceberg-query-engine
+```
+docker compose build
+```
+
+This will build the following Images:
+
+1. `jupyter-spark`: this is the Jupyter Lab based development environment with all the client dependencies installed
+2. `hive-metastore`: this will be used as the Iceberg Hive Catalog
+3. `iceberg-rest-catalog`: this is a python Iceberg REST catalog by [Kevin Liu](https://github.com/kevinjqliu/iceberg-rest-catalog), which I have forked, and added to this repo as a submodule
+
+Now start all the services:
+
+```
+docker compose up
+```
+
+On top of the 3 images mentioned above, this will also start the following images:
+
+1. `minio`: this will be our local S3 alternative, the object storage holding the data
+2. `mc`: this is the Minio client image, which is started to automatically create the initial bucker in Minio, then shutdown.
+3. `postgres`: this is the Postgres that will be used by the catalogs. An init script in the `postgres-init` folder is used to create the required databases in the postgres instances on first startup.
+4. `trino`: this is the Trino server, running as a single node cluster, with all the configs in the `trino-config`folder
 
 
-## write test
+## Jupyter Lab Notebooks
 
-spark on hive-metastore
-- 54.937945705023594 s
+Once the setup is done, the Jupyter lab instance can be accessed at: http://localhost:8888. There you will see the list of Jupyter Notebooks, which you can follow along in order:
 
-magic commiter for spark
-https://spot.io/blog/improve-apache-spark-performance-with-the-s3-magic-committer/
+1. 00-setup.ipynb
+2. 01-iceberg-hive.ipynb
+3. 02-iceberg-jdbc.ipynb
+4. 03-iceberg-rest.ipynb
 
+These are located in the `workspace` folder in this repo.
 
-s3a upload tuning
-https://blog.min.io/migrating-from-hadoop-without-rip-and-replace/
+The data created when running the notebooks will be saved under the `local-data` folder. 
 
-## catalogs
-https://medium.com/data-engineering-with-dremio/a-deep-dive-into-the-concept-and-world-of-apache-iceberg-catalogs-0697e8d18a8b
-
-create multiple dbs:
-https://github.com/mrts/docker-postgresql-multiple-databases
+## Permissions issues
+If you run into permissions issues in the `workspace` and the `local-data` folders, you can run the `permissions-fix.sh` script to try and fix it.

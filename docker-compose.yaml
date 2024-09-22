@@ -59,6 +59,7 @@ services:
       /usr/bin/mc mb --ignore-existing minio/warehouse
       "
 
+  # Postgres DB
   postgres:
     image: postgres:16
     container_name: postgres
@@ -73,8 +74,9 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
       PGDATA: /var/lib/postgresql/data/pgdata
-      POSTGRES_MULTIPLE_DATABASES: hive,nessie,iceberg
+      POSTGRES_MULTIPLE_DATABASES: hive,iceberg
 
+  # Trino Server
   trino:
     image: "trinodb/trino:453"
     container_name: trino
@@ -90,6 +92,7 @@ services:
       AWS_SECRET_ACCESS_KEY: password
       AWS_REGION: us-east-1
 
+  # Hive metastore for the Hive Catalog
   hive-metastore:
     depends_on:
       - postgres
@@ -114,7 +117,7 @@ services:
       S3A_ENDPOINT: http://minio:9000
       S3A_PATH_STYLE_ACCESS: true
 
-
+  # Python based Iceberg REST catalog
   iceberg-rest-catalog:
     image: iceberg-rest-catalog
     container_name: iceberg-rest-catalog
