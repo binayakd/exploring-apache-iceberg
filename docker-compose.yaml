@@ -114,52 +114,27 @@ services:
       S3A_ENDPOINT: http://minio:9000
       S3A_PATH_STYLE_ACCESS: true
 
-  nessie:
-    image: ghcr.io/projectnessie/nessie:0.94.4
-    container_name: nessie
+
+  iceberg-rest-catalog:
+    image: iceberg-rest-catalog
+    container_name: iceberg-rest-catalog
+    build:
+      context: iceberg-rest-catalog/
+      dockerfile: Dockerfile
+      target: prod
+      args:
+        - BASE_IMAGE=python:3.11-slim
+        - EXTRAS=postgres
     networks:
       - main
     ports:
-      # API port
-      - "19120:19120"
-      # Management port (metrics and health checks)
-      - "19121:19121"
-    depends_on:
-      - postgres
-      - minio
+      - 8000:8000
     environment:
-      # Version store settings.
-      - nessie.version.store.type=JDBC
-      - nessie.version.store.persist.jdbc.datasource=postgresql
-      - quarkus.datasource.postgresql.jdbc.url=jdbc:postgresql://postgres:5432/nessie
-      - quarkus.datasource.postgresql.username=postgres
-      - quarkus.datasource.postgresql.password=postgres
-      - quarkus.management.port=19121
-      # Object store settings.
-      # This example uses MinIO as the object store.
-      - nessie.catalog.default-warehouse=warehouse
-      - nessie.catalog.warehouses.warehouse.location=s3://warehouse/nessie/
-      - nessie.catalog.service.s3.default-options.region=us-east-1
-      - nessie.catalog.service.s3.default-options.path-style-access=true
-      - nessie.catalog.service.s3.default-options.access-key.name=admin
-      - nessie.catalog.service.s3.default-options.access-key.secret=password
-      # MinIO endpoint for Nessie server
-      - nessie.catalog.service.s3.default-options.endpoint=http://minio:9000/
-      # MinIO endpoint for clients (on the Podman/Docker host)
-      - nessie.catalog.service.s3.default-options.external-endpoint=http://127.0.0.1:9000/
-
-  # iceberg-rest-java:
-  #   image: tabulario/iceberg-rest
-  #   container_name: iceberg-rest-java
-  #   networks:
-  #     - main
-  #   ports:
-  #     - 8181:8181
-  #   environment:
-  #     - AWS_ACCESS_KEY_ID=admin
-  #     - AWS_SECRET_ACCESS_KEY=password
-  #     - AWS_REGION=us-east-1
-  #     - CATALOG_WAREHOUSE=s3://warehouse/iceberg-rest/
-  #     - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
-  #     - CATALOG_S3_ENDPOINT=http://minio:9000
-  #     - CATALOG_S3_PATH__STYLE__ACCESS=true
+      CATALOG_NAME: iceberg
+      CATALOG_JDBC_URI: postgresql://postgres:postgres@postgres:5432/iceberg
+      CATALOG_WAREHOUSE: s3://warehouse/iceberg-jdbc/
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password
+      AWS_REGION: us-east-1
+    

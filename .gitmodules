@@ -1,0 +1,3 @@
+[submodule "iceberg-rest-catalog"]
+	path = iceberg-rest-catalog
+	url = git@github.com:binayakd/iceberg-rest-catalog.git
