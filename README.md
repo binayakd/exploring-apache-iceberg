@@ -1,6 +1,6 @@
 # Exploring Apache Iceberg
 
-This repo the is the accompaniment to the [blog post]() where we explore the basics of setting up Hive, JDBC and REST Iceberg catalogs, and test writing and reading to Iceberg using Spark and Trino.
+This repo the is the accompaniment to the [blog post](https://binayakd.tech/posts/2024-08-30-exploring-iceberge/) where we explore the basics of setting up Hive, JDBC and REST Iceberg catalogs, and test writing and reading to Iceberg using Spark and Trino.
 
 ## Prerequisites
 You would need these to get things working:
